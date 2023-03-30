@@ -1,62 +1,23 @@
-import requests
-import json
 import os
+from aiogram import Bot
+from aiogram import Dispatcher
+from aiogram import executor, types
+from utils import get_information
 
-weather_link = "https://api.open-meteo.com/v1/forecast?latitude=54.18&longitude=45.17&hourly=temperature_2m,rain&windspeed_unit=ms&precipitation_unit=inch&forecast_days=1&timezone=Europe%2FMoscow"
-history = "history.txt"
+API_KEY = os.getenv("TG_TOKEN")
+bot = Bot(API_KEY)
+dp = Dispatcher(bot)
 
-
-def get_information():
-    weather = requests.get(weather_link).json()
-    data = {"rain": []}
-
-    timezone = weather["timezone"]
-    temperature = {"night": weather["hourly"]["temperature_2m"][0],
-                   "morning": weather["hourly"]["temperature_2m"][5],
-                   "day": weather["hourly"]["temperature_2m"][11],
-                   "evening": weather["hourly"]["temperature_2m"][17]}
-
-    rain = {"night": weather["hourly"]["rain"][0],
-            "morning": weather["hourly"]["rain"][5],
-            "day": weather["hourly"]["rain"][11],
-            "evening": weather["hourly"]["rain"][17]}
-
-    data["timezone"] = timezone
-    data["temperature"] = temperature
-
-    temp_list = [temp for temp in temperature.values()]
-    data["avg_temp"] = round(sum(temp_list) / len(temp_list), 2)
-
-    rain_list = [r for r in rain.values()]
-    if sum(rain_list) == 0:
-        data["rain"] = "Осадков нет"
-    else:
-        for time, rains in rain:
-            data["rain"][time] = rains
-
-    return data
+alphabet = "qwertyuiopasdfghjklzxcvbnm"
+DESCRIPTION = """   Этот бот создан чисто в учебных целях. 
+Естественно я буду его развивать!"""
 
 
-def to_json_file(data) -> None:
-    if os.stat(history).st_size == 0:
-        with open(history, "a") as f:
-            json.dump([data], f)
-
-    else:
-        with open(history) as json_file:
-            data_list = json.load(json_file)
-        data_list.append(data)
-
-        with open(history, "w") as json_file:
-            json.dump(data_list, json_file)
-
-
-def main() -> None:
-    """  """
+@dp.message_handler(commands=["start"])
+async def descr_fonction(message: types.Message):
     data = get_information()
-    print(f"""
-****{data["timezone"]}****
-
+    await message.delete()
+    await message.answer(f"""**** Saransk **** 
 Температура на день:
 Ночью: {data["temperature"]["night"]} °C
 Утром: {data["temperature"]["morning"]} °C
@@ -66,9 +27,26 @@ def main() -> None:
 Средняя температура: {data["avg_temp"]} °C
 
 Осадки: {data["rain"]}""")
+    await message.delete()
 
-    to_json_file(data)
+@dp.message_handler(commands=["description"])
+async def help_command(message: types.Message):
+    await message.delete()
+    await message.answer(f"Этот бот умеет предсказывать погоду в саранске")
 
+@dp.message_handler(commands=["help"])
+async def help_command(message: types.Message):
+    await message.delete()
+    await message.answer(f"""/start для того, чтобы воспользоваться ботом.
+/help для списка всех доступных команд
+/description для описания бота
+/donate 79520727211 для доната на Тинькофф
+/author TG: @vdovin_na """)
+
+@dp.message_handler()
+async def send_random_letter(message: types.Message):
+    await message.delete()
+    await message.answer(random.choice(string.ascii_letters))
 
 if __name__ == '__main__':
-    main()
+    executor.start_polling(dp)
